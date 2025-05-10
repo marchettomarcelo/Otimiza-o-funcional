@@ -28,7 +28,7 @@ def generate_random_weights(n):
     return weights
 
 # Função para calcular métricas da carteira
-def calculate_portfolio_metrics(retornos_dia ):
+def calculate_portfolio_metrics(retornos_dia):
 
     best_sharpe = -np.inf
     melhor_pesos = None
@@ -71,7 +71,9 @@ best_pesos = None
 
 # Gerar todas as combinações de 25 tickers
 n_tickers = len(tickers)
+
 combinations_list = list(combinations(range(n_tickers), 25))
+
 print(f"Total de combinações: {len(combinations_list)}")
 
 # Iterar sobre todas as combinações
