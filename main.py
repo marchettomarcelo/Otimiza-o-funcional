@@ -12,6 +12,8 @@ mi = retornos_dia.mean(axis=0) * 252
 mi_portfolio =  mi @ pesos_carteira
 
 
+
+
 sigma_portfolio = np.sqrt(pesos_carteira.T @ np.cov(retornos_dia.T) @ pesos_carteira) * np.sqrt(252)
 
 sharpe = mi_portfolio / sigma_portfolio
@@ -19,3 +21,4 @@ sharpe = mi_portfolio / sigma_portfolio
 print(f"Retorno esperado: {mi_portfolio}")
 print(f"Desvio padrão: {sigma_portfolio}")
 print(f"Sharpe Ratio: {sharpe}")
+

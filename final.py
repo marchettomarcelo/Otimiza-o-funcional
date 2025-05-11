@@ -1,10 +1,9 @@
 import numpy as np
 import requests
-from datetime import date
 from itertools import combinations
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
-
+from tqdm import tqdm
 import time
 
 # Configurações da API
@@ -17,53 +16,51 @@ DATE_RANGE = {
 # Função para obter dados da API
 def get_daily_returns():
     try:
-        response = requests.post(API_URL, json=DATE_RANGE)
+        response = requests.post(API_URL, json=DATE_RANGE, timeout=10)
         response.raise_for_status()
-        data = response.json()
-        return data
+        return response.json()
     except requests.exceptions.RequestException as e:
         print(f"Erro ao acessar a API: {e}")
         return None
 
-# Função para gerar pesos aleatórios que somam 1
-def generate_random_weights(n):
-    weights = np.random.random(n)
-    weights /= weights.sum()
-    return weights
-
 # Função para calcular métricas da carteira para uma combinação
-def calculate_portfolio_metrics(retornos_dia, combo_indices, tickers):
-    # Selecionar retornos dos tickers da combinação
+def calculate_portfolio_metrics(args):
+    retornos_dia, combo_indices, tickers = args
     selected_indices = list(combo_indices)
     selected_tickers = [tickers[i] for i in selected_indices]
     retornos_combo = retornos_dia[:, selected_indices]
 
-    best_sharpe = -np.inf
-    melhor_pesos = None
+    # Pré-calcular métricas fixas
+    mi = retornos_combo.mean(axis=0) * 252  # Retorno esperado anualizado
+    cov_matrix = np.cov(retornos_combo.T) * 252  # Covariância anualizada
 
-    # Testar 10 conjuntos de pesos aleatórios
-    for _ in range(10):
-        pesos_carteira = generate_random_weights(25)
-        
-        # Retorno esperado anualizado
-        mi = retornos_combo.mean(axis=0) * 252
-        mi_portfolio = mi @ pesos_carteira
-        
-        # Desvio padrão anualizado
-        cov_matrix = np.cov(retornos_combo.T)
-        sigma_portfolio = np.sqrt(pesos_carteira.T @ cov_matrix @ pesos_carteira) * np.sqrt(252)
-        
-        # Índice de Sharpe (sem taxa livre de risco)
-        sharpe = mi_portfolio / sigma_portfolio
-        
-        if sharpe > best_sharpe:
-            best_sharpe = sharpe
-            melhor_pesos = pesos_carteira
+    # Gerar 10 conjuntos de pesos aleatórios de uma vez
+    num_weights = 1000
+    pesos = np.random.random((num_weights, 25))
+    pesos /= pesos.sum(axis=1, keepdims=True)  # Normalizar para soma = 1
+
+    # Calcular retornos do portfólio (vetorizado)
+    mi_portfolio = pesos @ mi
+
+    # Calcular volatilidade do portfólio (vetorizado)
+    sigma_portfolio = np.sqrt(np.einsum('ij,jk,ik->i', pesos, cov_matrix, pesos))
     
+
+    # Calcular Sharpe (sem taxa livre de risco)
+    sharpe = mi_portfolio / sigma_portfolio
+
+
+    # Encontrar o melhor Sharpe
+    best_idx = np.argmax(sharpe)
+    best_sharpe = sharpe[best_idx]
+    melhor_pesos = pesos[best_idx]
+
     return best_sharpe, melhor_pesos, selected_tickers
 
 # Função principal
 def main():
+    start_time = time.time()
+
     # Obter dados da API
     data = get_daily_returns()
     if data is None:
@@ -76,41 +73,35 @@ def main():
     # Converter retornos diários para matriz NumPy
     retornos_dia = np.array([data["returns"][ticker] for ticker in tickers]).T
 
-    # Inicializar variáveis para armazenar a melhor combinação
-    best_sharpe = -np.inf
-    best_tickers = None
-    best_pesos = None
-
     # Gerar todas as combinações de 25 tickers
     combinations_list = list(combinations(range(len(tickers)), 25))
     print(f"Total de combinações: {len(combinations_list)}")
 
-    # Configurar o número de trabalhadores (ajuste conforme necessário)
-    num_workers = multiprocessing.cpu_count()  # Usa o número de núcleos disponíveis
+    # Configurar número de trabalhadores
+    num_workers = min(multiprocessing.cpu_count(), 16)  # Limite para evitar sobrecarga
+
+    # Inicializar variáveis para a melhor combinação
+    best_sharpe = -np.inf
+    best_tickers = None
+    best_pesos = None
 
     # Processar combinações em paralelo
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        
-        # Submeter todas as combinações para processamento
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        # Submeter todas as combinações
         future_to_combo = {
-            executor.submit(calculate_portfolio_metrics, retornos_dia, combo, tickers): combo
+            executor.submit(calculate_portfolio_metrics, (retornos_dia, combo, tickers)): combo
             for combo in combinations_list
         }
 
-        # Monitorar progresso
-        completed = 0
-        for future in as_completed(future_to_combo):
+        # Monitorar progresso com tqdm
+        for future in tqdm(as_completed(future_to_combo), total=len(combinations_list), desc="Processando combinações"):
             sharpe, pesos, selected_tickers = future.result()
             
-            # Atualizar melhor combinação se Sharpe for maior
+            # Atualizar melhor combinação
             if sharpe > best_sharpe:
                 best_sharpe = sharpe
                 best_tickers = selected_tickers
                 best_pesos = pesos
-
-            completed += 1
-            if completed % 10000 == 0:
-                print(f"Processadas {completed} combinações...")
 
     # Exibir resultados
     print("\nMelhor combinação encontrada:")
@@ -121,11 +112,11 @@ def main():
     for ticker, peso in zip(best_tickers, best_pesos):
         print(f"{ticker}: {peso*100:.4f}%")
 
-if __name__ == "__main__":
-    start_time = time.time()
-    
-    main()
-    
-    end_time = time.time()
-    elapsed_time = end_time - start_time
+    # Tempo de execução
+    elapsed_time = time.time() - start_time
     print(f"\nTempo total de execução: {elapsed_time:.2f} segundos")
+
+if __name__ == "__main__":
+    # Garantir que o NumPy use uma implementação otimizada
+    np.seterr(all='raise')  # Para detectar erros numéricos
+    main()

@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import requests
 from datetime import date
@@ -33,7 +34,7 @@ def calculate_portfolio_metrics(retornos_dia):
     best_sharpe = -np.inf
     melhor_pesos = None
 
-    for _ in range(10):
+    for _ in range(1000):
         
         pesos_carteira = generate_random_weights(25)
         
@@ -57,6 +58,8 @@ def calculate_portfolio_metrics(retornos_dia):
 
 # Obter dados da API
 data = get_daily_returns()
+
+start_time = time.time()
 
 # Obter todos os tickers disponíveis
 tickers = list(data["returns"].keys())
@@ -107,3 +110,9 @@ print("\nPesos da carteira:")
 
 for ticker, peso in zip(best_tickers, best_pesos):
     print(f"{ticker}: {peso*100:.4f}%")
+
+
+print(" ")
+
+elapsed_time = time.time() - start_time
+print(f"\nTempo total de execução: {elapsed_time:.2f} segundos")
