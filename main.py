@@ -1,24 +1,57 @@
-import numpy as np
+import time
+import requests
+# Configurações da API
 
-pesos_carteira = np.array([0.5, 0.5]).T
-
-retornos_dia = np.array([[0.01, 0.02], 
-                        [0.03, 0.01 ],
-                        [-0.01, -0.02]])
-
-
-mi = retornos_dia.mean(axis=0) * 252
-
-mi_portfolio =  mi @ pesos_carteira
+from paralel import paralel_optimization
+from sequential import sequential_optimization
 
 
 
+# Função para obter dados da API
+def get_daily_returns(date_range):
+    API_URL = "http://0.0.0.0:8000/dow/daily-returns"
+    try:
+        response = requests.post(API_URL, json=date_range, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao acessar a API: {e}")
+        return None
 
-sigma_portfolio = np.sqrt(pesos_carteira.T @ np.cov(retornos_dia.T) @ pesos_carteira) * np.sqrt(252)
 
-sharpe = mi_portfolio / sigma_portfolio
+def main():
 
-print(f"Retorno esperado: {mi_portfolio}")
-print(f"Desvio padrão: {sigma_portfolio}")
-print(f"Sharpe Ratio: {sharpe}")
+    DATE_RANGE = {
+        "start_date": "2024-08-01",
+        "end_date": "2024-12-31"
+    }
 
+
+    data = get_daily_returns(DATE_RANGE )
+
+    mode = input("Escolha o modo de otimização sequential (s) ou paralel (p): ").strip().lower()
+
+    start_time = time.time()
+
+    if mode == "s":
+        best_sharpe, best_tickers, best_pesos = sequential_optimization(data, n_vetores_pesos=1000)
+    
+    elif mode == "p":
+        best_sharpe, best_tickers, best_pesos = paralel_optimization(data, n_vetores_pesos=1000)
+
+     # Exibir resultados
+    print("\nMelhor combinação encontrada:")
+    print(f"Sharpe Ratio: {best_sharpe:.4f}")
+    print("\nTickers selecionados:")
+    print(", ".join(best_tickers))
+    print("\nPesos da carteira:")
+
+    for ticker, peso in zip(best_tickers, best_pesos):
+        print(f"{ticker}: {peso*100:.4f}%")
+
+    elapsed_time = time.time() - start_time
+    print(f"\nTempo total de execução: {elapsed_time:.2f} segundos")
+
+
+if __name__ == "__main__":
+    main()

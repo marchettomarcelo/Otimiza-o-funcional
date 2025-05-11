@@ -1,31 +1,13 @@
 import numpy as np
-import requests
 from itertools import combinations
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 from tqdm import tqdm
-import time
-
-# Configurações da API
-API_URL = "http://0.0.0.0:8000/dow/daily-returns"
-DATE_RANGE = {
-    "start_date": "2024-08-01",
-    "end_date": "2024-12-31"
-}
-
-# Função para obter dados da API
-def get_daily_returns():
-    try:
-        response = requests.post(API_URL, json=DATE_RANGE, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Erro ao acessar a API: {e}")
-        return None
 
 # Função para calcular métricas da carteira para uma combinação
 def calculate_portfolio_metrics(args):
-    retornos_dia, combo_indices, tickers = args
+
+    retornos_dia, combo_indices, tickers, n_vetores_pesos = args
     selected_indices = list(combo_indices)
     selected_tickers = [tickers[i] for i in selected_indices]
     retornos_combo = retornos_dia[:, selected_indices]
@@ -34,9 +16,8 @@ def calculate_portfolio_metrics(args):
     mi = retornos_combo.mean(axis=0) * 252  # Retorno esperado anualizado
     cov_matrix = np.cov(retornos_combo.T) * 252  # Covariância anualizada
 
-    # Gerar 10 conjuntos de pesos aleatórios de uma vez
-    num_weights = 1000
-    pesos = np.random.random((num_weights, 25))
+
+    pesos = np.random.random((n_vetores_pesos, 25))
     pesos /= pesos.sum(axis=1, keepdims=True)  # Normalizar para soma = 1
 
     # Calcular retornos do portfólio (vetorizado)
@@ -44,11 +25,9 @@ def calculate_portfolio_metrics(args):
 
     # Calcular volatilidade do portfólio (vetorizado)
     sigma_portfolio = np.sqrt(np.einsum('ij,jk,ik->i', pesos, cov_matrix, pesos))
-    
 
     # Calcular Sharpe (sem taxa livre de risco)
     sharpe = mi_portfolio / sigma_portfolio
-
 
     # Encontrar o melhor Sharpe
     best_idx = np.argmax(sharpe)
@@ -58,15 +37,7 @@ def calculate_portfolio_metrics(args):
     return best_sharpe, melhor_pesos, selected_tickers
 
 # Função principal
-def main():
-    start_time = time.time()
-
-    # Obter dados da API
-    data = get_daily_returns()
-    if data is None:
-        print("Falha ao obter dados da API. Encerrando.")
-        return
-
+def paralel_optimization(data, n_vetores_pesos = 1000):
     # Obter todos os tickers disponíveis
     tickers = list(data["returns"].keys())
 
@@ -89,7 +60,7 @@ def main():
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
         # Submeter todas as combinações
         future_to_combo = {
-            executor.submit(calculate_portfolio_metrics, (retornos_dia, combo, tickers)): combo
+            executor.submit(calculate_portfolio_metrics, (retornos_dia, combo, tickers, n_vetores_pesos)): combo
             for combo in combinations_list
         }
 
@@ -103,20 +74,4 @@ def main():
                 best_tickers = selected_tickers
                 best_pesos = pesos
 
-    # Exibir resultados
-    print("\nMelhor combinação encontrada:")
-    print(f"Sharpe Ratio: {best_sharpe:.4f}")
-    print("\nTickers selecionados:")
-    print(", ".join(best_tickers))
-    print("\nPesos da carteira:")
-    for ticker, peso in zip(best_tickers, best_pesos):
-        print(f"{ticker}: {peso*100:.4f}%")
-
-    # Tempo de execução
-    elapsed_time = time.time() - start_time
-    print(f"\nTempo total de execução: {elapsed_time:.2f} segundos")
-
-if __name__ == "__main__":
-    # Garantir que o NumPy use uma implementação otimizada
-    np.seterr(all='raise')  # Para detectar erros numéricos
-    main()
+    return best_sharpe, best_tickers, best_pesos
