@@ -1,9 +1,7 @@
 import time
 import requests
-# Configurações da API
-
-from paralel import paralel_optimization
-from sequential import sequential_optimization
+from scripts.paralel import paralel_optimization
+from scripts.sequential import sequential_optimization
 
 
 
@@ -38,7 +36,7 @@ def main():
         best_sharpe, best_tickers, best_pesos = sequential_optimization(data, n_vetores_pesos=1000)
     
     elif mode == "p":
-        best_sharpe, best_tickers, best_pesos = paralel_optimization(data, n_vetores_pesos=100000)
+        best_sharpe, best_tickers, best_pesos = paralel_optimization(data, n_vetores_pesos=1000)
 
      # Exibir resultados
     print("\nMelhor combinação encontrada:")

@@ -61,9 +61,9 @@ O gráfico abaixo compara o tempo de execução para analisar 1000 alocações d
 
 ### Teste no Q1 2025
 
-Ao testar 10000 alocações diferentes para 25 ativos, o melhor Sharpe obtido foi:
+Ao testar 10000 alocações diferentes para 25 ativos, o melhor Sharpe obtido foi `4.0258`:
 
-[RESULTADO DO TESTE]
+![comparando processos](./graficos/q1comp.png)
 
 ## Estrutura do Projeto
 
@@ -72,3 +72,7 @@ Ao testar 10000 alocações diferentes para 25 ativos, o melhor Sharpe obtido fo
 -   `paralel.py`: Implementação da otimização paralela
 -   `graficos/`: Diretório contendo os gráficos gerados
 -   `scripts/`: Scripts auxiliares
+
+### Extra:
+
+A API que traz os dados pode ser vista [aqui](https://github.com/marchettomarcelo/yahoo-dow-data-py).

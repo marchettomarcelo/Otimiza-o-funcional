@@ -8,6 +8,7 @@ from tqdm import tqdm
 def calculate_portfolio_metrics(args):
 
     retornos_dia, combo_indices, tickers, n_vetores_pesos = args
+    
     selected_indices = list(combo_indices)
     selected_tickers = [tickers[i] for i in selected_indices]
     retornos_combo = retornos_dia[:, selected_indices]

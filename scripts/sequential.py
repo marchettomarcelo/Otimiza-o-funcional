@@ -1,7 +1,5 @@
-import time
 import numpy as np
 from itertools import combinations
-from scripts.loader import get_daily_returns
 
 # Função para gerar pesos aleatórios que somam 1
 def generate_random_weights(n):
