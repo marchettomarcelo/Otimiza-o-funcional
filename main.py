@@ -9,7 +9,9 @@ from sequential import sequential_optimization
 
 # Função para obter dados da API
 def get_daily_returns(date_range):
-    API_URL = "http://0.0.0.0:8000/dow/daily-returns"
+
+    API_URL = "https://yahoo-dow-data-py-production.up.railway.app/dow/daily-returns"
+
     try:
         response = requests.post(API_URL, json=date_range, timeout=10)
         response.raise_for_status()
@@ -22,12 +24,11 @@ def get_daily_returns(date_range):
 def main():
 
     DATE_RANGE = {
-        "start_date": "2024-08-01",
-        "end_date": "2024-12-31"
+        "start_date": "2025-01-01",
+        "end_date": "2025-03-31"
     }
 
-
-    data = get_daily_returns(DATE_RANGE )
+    data = get_daily_returns(DATE_RANGE)
 
     mode = input("Escolha o modo de otimização sequential (s) ou paralel (p): ").strip().lower()
 
@@ -37,7 +38,7 @@ def main():
         best_sharpe, best_tickers, best_pesos = sequential_optimization(data, n_vetores_pesos=1000)
     
     elif mode == "p":
-        best_sharpe, best_tickers, best_pesos = paralel_optimization(data, n_vetores_pesos=1000)
+        best_sharpe, best_tickers, best_pesos = paralel_optimization(data, n_vetores_pesos=100000)
 
      # Exibir resultados
     print("\nMelhor combinação encontrada:")
