@@ -1,22 +1,7 @@
 import numpy as np
-import requests
-from datetime import datetime, timedelta
-
-def get_daily_returns(date_range):
-    API_URL = "https://yahoo-dow-data-py-production.up.railway.app/dow/daily-returns"
-    
-    try:
-        response = requests.post(API_URL, json=date_range, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Erro ao acessar a API: {e}")
-        return None
+from scripts.loader import get_daily_returns
 
 def test_portfolio():
-    # Definir período de teste (últimos 3 meses)
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=90)
     
     date_range = {
         "start_date": "2025-01-01",
