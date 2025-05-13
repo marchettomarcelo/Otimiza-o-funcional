@@ -30,8 +30,8 @@ Este projeto implementa um otimizador de carteira de investimentos que utiliza d
 2. Clone este repositório:
 
 ```bash
-git clone https://github.com/marchettomarcelo/Otimiza-o-funcional.git
-cd [NOME_DO_DIRETÓRIO]
+git clone https://github.com/marchettomarcelo/Portfolio-optimization.git
+cd Portfolio-optimization
 ```
 
 3. Execute o programa:
